@@ -14,7 +14,7 @@
  */
 
  //
- //  Emlid Reach Binary (ERB) GPS driver for ArduPilot.
+ //  Emlid Reach Binary (ERB) GPS driver for ROS.
  //  ERB protocol: http://files.emlid.com/ERB.pdf
 
 #include "reach_parser.h"
@@ -330,19 +330,6 @@ AP_GPS_ERB::_init_serial()
     /* clear ONLCR flag (which appends a CR for every LF) */
     uart_config.c_oflag &= ~ONLCR;
 
-    /* set baud rate */
-    if ((termios_state = cfsetispeed(&uart_config, speed)) < 0) {
-        Debug("ERR CFG: %d ISPD", termios_state);
-    }
-
-    if ((termios_state = cfsetospeed(&uart_config, speed)) < 0) {
-        Debug("ERR CFG: %d OSPD\n", termios_state);
-    }
-
-    if ((termios_state = tcsetattr(_tty_fd, TCSANOW, &uart_config)) < 0) {
-        Debug("ERR baud %d ATTR", termios_state);
-    }
-
     uart_config.c_cflag |= (CLOCAL | CREAD);    /* ignore modem controls */
     uart_config.c_cflag &= ~CSIZE;
     uart_config.c_cflag |= CS8;         /* 8-bit characters */
@@ -358,6 +345,19 @@ AP_GPS_ERB::_init_serial()
     /* fetch bytes as they become available */
     uart_config.c_cc[VMIN] = 1;
     uart_config.c_cc[VTIME] = 1;
+
+    /* set baud rate */
+    if ((termios_state = cfsetispeed(&uart_config, speed)) < 0) {
+        Debug("ERR CFG: %d ISPD", termios_state);
+    }
+
+    if ((termios_state = cfsetospeed(&uart_config, speed)) < 0) {
+        Debug("ERR CFG: %d OSPD\n", termios_state);
+    }
+
+    if ((termios_state = tcsetattr(_tty_fd, TCSANOW, &uart_config)) < 0) {
+        Debug("ERR baud %d ATTR", termios_state);
+    }
 
     usleep(500000); // Wait for 500ms to setup 
 

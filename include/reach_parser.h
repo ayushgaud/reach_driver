@@ -14,13 +14,12 @@
  */
 
 //
-//  Emlid Reach Binary (ERB) GPS driver for ArduPilot.
+//  Emlid Reach Binary (ERB) GPS driver for ROS.
 //  ERB protocol: http://files.emlid.com/ERB.pdf
 
 #pragma once        // Only to include the header once
-#include <stdint.h> // or if using C++11 then #include <cstdint> for fixed width type objetcs like int8_t etc.
 
-#include "gps_objects.h"
+#include <stdint.h> // or if using C++11 then #include <cstdint> for fixed width type objetcs like int8_t etc.
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -29,6 +28,7 @@
 #include <string.h>
 #include <math.h>
 #include <cstdlib>
+#include "gps_objects.h"
 
 #define DEFAULT_PORT "/dev/ttyACM0"
 #define MAX_BUF_SIZE 100
