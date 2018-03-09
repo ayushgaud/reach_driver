@@ -19,12 +19,11 @@
 
 #include "reach_parser.h"
 
-AP_GPS_ERB::AP_GPS_ERB(GPS_State &state, const char *port = DEFAULT_PORT) :
+GPS_ERB::GPS_ERB(GPS_State &state, const char *port = DEFAULT_PORT) :
     _step(0),
     _msg_id(0),
     _payload_length(0),
     _payload_counter(0),
-    _fix_count(0),
     _new_position(0),
     _new_speed(0),
     _state(state),
@@ -36,11 +35,15 @@ AP_GPS_ERB::AP_GPS_ERB(GPS_State &state, const char *port = DEFAULT_PORT) :
     /* enforce null termination */
     _port[sizeof(_port) - 1] = '\0';
 
+    /* Initialize state object */
+    GPS_ERB::_init_state();
+
     /* Initialize serial port */
-    AP_GPS_ERB::_init_serial(); 
+    GPS_ERB::_init_serial();
+
 }
 
-AP_GPS_ERB::~AP_GPS_ERB()
+GPS_ERB::~GPS_ERB()
 {
     /* Close the serial port */
     close(_tty_fd);
@@ -55,7 +58,7 @@ AP_GPS_ERB::~AP_GPS_ERB()
 // attempts to avoid this when possible.
 //
 bool
-AP_GPS_ERB::read()
+GPS_ERB::read()
 {
     
     /* the buffer for read chars is buflen minus null termination */
@@ -125,7 +128,7 @@ AP_GPS_ERB::read()
         case 6:
             _step++;
             if (_ck_a != data) {
-                Debug("bad cka %x should be %x", data, _ck_a);
+                Warn("bad cka %x should be %x", data, _ck_a);
                 _step = 0;
                 goto reset;
             }
@@ -133,7 +136,7 @@ AP_GPS_ERB::read()
         case 7:
             _step = 0;
             if (_ck_b != data) {
-                Debug("bad ckb %x should be %x", data, _ck_b);
+                Warn("bad ckb %x should be %x", data, _ck_b);
                 break;                                  // bad checksum
             }
 
@@ -147,7 +150,7 @@ AP_GPS_ERB::read()
 }
 
 bool
-AP_GPS_ERB::_parse_gps(void)
+GPS_ERB::_parse_gps(void)
 {
     switch (_msg_id) {
     case MSG_VER:
@@ -174,11 +177,11 @@ AP_GPS_ERB::_parse_gps(void)
               _buffer.stat.fix_status,
               _buffer.stat.fix_type);
         if (_buffer.stat.fix_status & STAT_FIX_VALID) {
-            if (_buffer.stat.fix_type == AP_GPS_ERB::FIX_FIX) {
+            if (_buffer.stat.fix_type == GPS_ERB::FIX_FIX) {
                 next_fix = GPS_OK_FIX_3D_RTK_FIXED;
-            } else if (_buffer.stat.fix_type == AP_GPS_ERB::FIX_FLOAT) {
+            } else if (_buffer.stat.fix_type == GPS_ERB::FIX_FLOAT) {
                 next_fix = GPS_OK_FIX_3D_RTK_FLOAT;
-            } else if (_buffer.stat.fix_type == AP_GPS_ERB::FIX_SINGLE) {
+            } else if (_buffer.stat.fix_type == GPS_ERB::FIX_SINGLE) {
                 next_fix = GPS_OK_FIX_3D;
             } else {
                 next_fix = NO_FIX;
@@ -204,7 +207,7 @@ AP_GPS_ERB::_parse_gps(void)
         _last_vel_time         = _buffer.vel.time;
         _state.ground_speed     = _buffer.vel.speed_2d * 0.01f;        // m/s
         // Heading 2D deg * 100000 rescaled to deg * 100
-        _state.ground_course = wrap_360(_buffer.vel.heading_2d * 1.0e-5f);
+        _state.ground_course = wr360(_buffer.vel.heading_2d * 1.0e-5f);
         _state.have_vertical_velocity = true;
         _state.velocity_x = _buffer.vel.vel_north * 0.01f;
         _state.velocity_y = _buffer.vel.vel_east * 0.01f;
@@ -231,7 +234,7 @@ AP_GPS_ERB::_parse_gps(void)
         _state.rtk_time_week_ms  = _buffer.rtk.base_time_week_ms;
         break;
     default:
-        Debug("Unexpected message 0x%02x", (unsigned)_msg_id);
+        Warn("Unexpected message 0x%02x", (unsigned)_msg_id);
         return false;
     }
     // we only return true when we get new position and speed data
@@ -239,70 +242,14 @@ AP_GPS_ERB::_parse_gps(void)
     if (_new_position && _new_speed && _last_vel_time == _last_pos_time) {
         _new_speed = _new_position = false;
         _fix_count++;
+        _state.fix_count = _fix_count;
         return true;
     }
     return false;
 }
 
-/*
-  detect a ERB GPS. Adds one byte, and returns true if the stream
-  matches a ERB
- */
-bool
-AP_GPS_ERB::_detect(struct ERB_detect_state &state, uint8_t data)
-{
-reset:
-    switch (state.step) {
-        case 1:
-            if (PREAMBLE2 == data) {
-                state.step++;
-                break;
-            }
-            state.step = 0;
-            /* FALLTHROUGH */
-        case 0:
-            if (PREAMBLE1 == data)
-                state.step++;
-            break;
-        case 2:
-            state.step++;
-            state.ck_b = state.ck_a = data;
-            break;
-        case 3:
-            state.step++;
-            state.ck_b += (state.ck_a += data);
-            state.payload_length = data;
-            break;
-        case 4:
-            state.step++;
-            state.ck_b += (state.ck_a += data);
-            state.payload_counter = 0;
-            break;
-        case 5:
-            state.ck_b += (state.ck_a += data);
-            if (++state.payload_counter == state.payload_length)
-                state.step++;
-            break;
-        case 6:
-            state.step++;
-            if (state.ck_a != data) {
-                state.step = 0;
-                goto reset;
-            }
-            break;
-        case 7:
-            state.step = 0;
-            if (state.ck_b == data) {
-                return true;
-            } else {
-                goto reset;
-            }
-    }
-    return false;
-}
-
 int32_t 
-AP_GPS_ERB::wrap_360(const int32_t angle, float unit_mod)
+GPS_ERB::wr360(const int32_t angle, float unit_mod)
 {
     const float ang_360 = 360.f * unit_mod;
     float res = fmodf(angle, ang_360);
@@ -313,7 +260,7 @@ AP_GPS_ERB::wrap_360(const int32_t angle, float unit_mod)
 }
 
 void 
-AP_GPS_ERB::_init_serial()
+GPS_ERB::_init_serial()
 {
     /* open fd */
     _tty_fd = ::open(_port, O_RDWR | O_NOCTTY | O_SYNC);
@@ -348,24 +295,58 @@ AP_GPS_ERB::_init_serial()
 
     /* set baud rate */
     if ((termios_state = cfsetispeed(&uart_config, speed)) < 0) {
-        Debug("ERR CFG: %d ISPD", termios_state);
+        Warn("ERR CFG: %d ISPD", termios_state);
     }
 
     if ((termios_state = cfsetospeed(&uart_config, speed)) < 0) {
-        Debug("ERR CFG: %d OSPD\n", termios_state);
+        Warn("ERR CFG: %d OSPD\n", termios_state);
     }
 
     if ((termios_state = tcsetattr(_tty_fd, TCSANOW, &uart_config)) < 0) {
-        Debug("ERR baud %d ATTR", termios_state);
+        Warn("ERR baud %d ATTR", termios_state);
     }
 
     usleep(500000); // Wait for 500ms to setup 
 
     if (_tty_fd < 0) {
-        Debug("FAIL to open");
+        Warn("FAIL to open");
     }
     else
     {
         Debug("Successfully opened port");
     }
+}
+
+void
+GPS_ERB::_init_state()
+{
+    _state.status = NO_GPS;                
+    _state.fix_count = 0;                 
+    _state.time_week_ms = 0;              
+    _state.time_week = 0;                 
+    _state.latitude = 0;                     
+    _state.longitude = 0;                    
+    _state.altitude = 0;                    
+    _state.ground_speed = 0;                 
+    _state.ground_course = 0;                
+    _state.hdop = 0;                      
+    _state.vdop = 0;                      
+    _state.num_sats = 0;                   
+    _state.velocity_x = 0;                   
+    _state.velocity_y = 0;                   
+    _state.velocity_z = 0;                   
+    _state.speed_accuracy = 0;               
+    _state.horizontal_accuracy = 0;          
+    _state.vertical_accuracy = 0;     
+    
+    _state.rtk_time_week_ms = 0;         
+    _state.rtk_week_number = 0;          
+    _state.rtk_age_ms = 0;               
+    _state.rtk_num_sats = 0;             
+    _state.rtk_baseline_coords_type = 0; 
+    _state.rtk_baseline_x_mm = 0;        
+    _state.rtk_baseline_y_mm = 0;        
+    _state.rtk_baseline_z_mm = 0;        
+    _state.rtk_accuracy = 0;             
+    _state.rtk_iar_num_hypotheses = 0;
 }

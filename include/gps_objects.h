@@ -25,10 +25,9 @@ enum GPS_Status {
   parses each message from the GPS.
  */
 struct GPS_State {
-    uint8_t instance; // the instance number of this GPS
 
-    // all the following fields must all be filled by the backend driver
     GPS_Status status;                  ///< driver fix status
+    uint8_t fix_count;                 // 8 bit count of fix messages processed, used for periodic processing
     uint32_t time_week_ms;              ///< GPS time (milliseconds from start of GPS week)
     uint16_t time_week;                 ///< GPS week number
     float latitude;                     ///< last fix location latitude
@@ -50,7 +49,6 @@ struct GPS_State {
     bool have_horizontal_accuracy:1;    ///< does GPS give horizontal position accuracy? Set to true only once available.
     bool have_vertical_accuracy:1;      ///< does GPS give vertical position accuracy? Set to true only once available.
     
-    // all the following fields must only all be filled by RTK capable backend drivers
     uint32_t rtk_time_week_ms;         ///< GPS Time of Week of last baseline in milliseconds
     uint16_t rtk_week_number;          ///< GPS Week Number of last baseline
     uint32_t rtk_age_ms;               ///< GPS age of last baseline correction in milliseconds  (0 when no corrections, 0xFFFFFFFF indicates overflow)

@@ -36,8 +36,6 @@
 #define FALLTHROUGH [[fallthrough]]
 #define DEFINE_BYTE_ARRAY_METHODS inline uint8_t &operator[](size_t i) { return reinterpret_cast<uint8_t *>(this)[i]; }
 
-#define ERB_DEBUGGING 1
-
 #define STAT_FIX_VALID 0x01
 
 #if ERB_DEBUGGING
@@ -50,23 +48,25 @@
 #define WHT   "\x1B[37m"
 #define RESET "\x1B[0m"
  # define Debug(fmt, args ...)  printf(GRN "%s:%d: " fmt "\n" RESET, __FUNCTION__, __LINE__, ## args)
+ # define Warn(fmt, args ...)  printf(RED "%s:%d: " fmt "\n" RESET, __FUNCTION__, __LINE__, ## args)
 #else
  # define Debug(fmt, args ...)
+ # define Warn(fmt, args ...)
 #endif
 
-class AP_GPS_ERB
+class GPS_ERB
 {
 public:
-    AP_GPS_ERB(GPS_State &state, const char *port);
-    ~AP_GPS_ERB();
+    GPS_ERB(GPS_State &state, const char *port);
+    ~GPS_ERB();
     // Methods
     bool read();
 
-    static bool _detect(struct ERB_detect_state &state, uint8_t data);
-
 private:
     
-    int32_t wrap_360(const int32_t angle, float unit_mod = 1);
+    int32_t wr360(const int32_t angle, float unit_mod = 1);
+
+    void _init_state();
 
     struct PACKED erb_header {
         uint8_t preamble1;
