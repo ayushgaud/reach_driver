@@ -162,13 +162,13 @@ GPS_ERB::_parse_gps(void)
     case MSG_POS:
         Debug("Message POS");
         _last_pos_time        = _buffer.pos.time;
-        _state.longitude    = (int32_t)(_buffer.pos.longitude * (double)1e7);
-        _state.latitude    = (int32_t)(_buffer.pos.latitude * (double)1e7);
-        _state.altitude    = (int32_t)(_buffer.pos.altitude_msl * 100);
+        _state.longitude    = _buffer.pos.longitude;
+        _state.latitude    = _buffer.pos.latitude;
+        _state.altitude    = _buffer.pos.altitude_msl;
         _state.status          = next_fix;
         _new_position = true;
-        _state.horizontal_accuracy = _buffer.pos.horizontal_accuracy * 1.0e-3f;
-        _state.vertical_accuracy = _buffer.pos.vertical_accuracy * 1.0e-3f;
+        _state.horizontal_accuracy = _buffer.pos.horizontal_accuracy * 1.0e-3f;// in m
+        _state.vertical_accuracy = _buffer.pos.vertical_accuracy * 1.0e-3f;// in m
         _state.have_horizontal_accuracy = true;
         _state.have_vertical_accuracy = true;
         break;

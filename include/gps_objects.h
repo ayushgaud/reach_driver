@@ -13,9 +13,7 @@ struct ERB_detect_state {
 enum GPS_Status {
     NO_GPS,                     ///< No GPS connected/detected
     NO_FIX,                     ///< Receiving valid GPS messages but no lock
-    GPS_OK_FIX_2D,              ///< Receiving valid messages and 2D lock
     GPS_OK_FIX_3D,              ///< Receiving valid messages and 3D lock
-    GPS_OK_FIX_3D_DGPS,           ///< Receiving valid messages and 3D lock with differential improvements
     GPS_OK_FIX_3D_RTK_FLOAT, ///< Receiving valid messages and 3D RTK Float
     GPS_OK_FIX_3D_RTK_FIXED, ///< Receiving valid messages and 3D RTK Fixed
 };
