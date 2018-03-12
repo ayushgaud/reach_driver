@@ -31,10 +31,16 @@ GPS_ERB::GPS_ERB(GPS_State &state, const char *port = DEFAULT_PORT) :
     next_fix(NO_FIX)
 {
     /* store port name */
-    strncpy(_port, port, sizeof(_port));
+    if(!strcmp(port,"auto"))
+        strncpy(_port, GPS_ERB::find_port(), sizeof(_port));
+     else
+        strncpy(_port, port, sizeof(_port));
+    
+
     /* enforce null termination */
     _port[sizeof(_port) - 1] = '\0';
 
+    /* Check for auto port search */
     /* Initialize state object */
     GPS_ERB::_init_state();
 
@@ -349,4 +355,26 @@ GPS_ERB::_init_state()
     _state.rtk_baseline_z_mm = 0;        
     _state.rtk_accuracy = 0;             
     _state.rtk_iar_num_hypotheses = 0;
+}
+
+const char* GPS_ERB::find_port(void){
+    const char* cmd = "ls /dev/serial/by-id/* | grep Edison | xargs ls -la | grep -m1 -oh '\\w*tty\\w*'";
+    char buffer[128];
+    std::string result = "";
+    FILE* pipe = popen(cmd, "r");
+    if (!pipe) throw std::runtime_error("popen() failed!");
+    try {
+        while (!feof(pipe)) {
+            if (fgets(buffer, 128, pipe) != NULL)
+                result += buffer;
+        }
+    } catch (...) {
+        pclose(pipe);
+        throw;
+    }
+    pclose(pipe);
+    Debug("Port %s",result.c_str());
+    if(result.length() > 10 || result.length() <= 0) // Check for valid serial port value 
+        exit(-1);
+    return result.c_str();
 }

@@ -28,6 +28,8 @@
 #include <string.h>
 #include <math.h>
 #include <cstdlib>
+#include <string> // std::string
+#include <stdexcept> // std::runtime_error
 #include "gps_objects.h"
 
 #define DEFAULT_PORT "/dev/ttyACM0"
@@ -63,6 +65,8 @@ public:
     bool read();
 
 private:
+    
+    const char* find_port(void);
     
     int32_t wr360(const int32_t angle, float unit_mod = 1);
 
