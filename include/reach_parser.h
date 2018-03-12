@@ -66,8 +66,8 @@ public:
 
 private:
     
-    const char* find_port(void);
-    
+    std::string find_port(void);
+
     int32_t wr360(const int32_t angle, float unit_mod = 1);
 
     void _init_state();

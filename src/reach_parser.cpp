@@ -32,7 +32,7 @@ GPS_ERB::GPS_ERB(GPS_State &state, const char *port = DEFAULT_PORT) :
 {
     /* store port name */
     if(!strcmp(port,"auto"))
-        strncpy(_port, GPS_ERB::find_port(), sizeof(_port));
+        strncpy(_port, GPS_ERB::find_port().c_str(), sizeof(_port));
      else
         strncpy(_port, port, sizeof(_port));
     
@@ -357,7 +357,7 @@ GPS_ERB::_init_state()
     _state.rtk_iar_num_hypotheses = 0;
 }
 
-const char* GPS_ERB::find_port(void){
+std::string GPS_ERB::find_port(void){
     const char* cmd = "ls /dev/serial/by-id/* | grep Edison | xargs ls -la | grep -m1 -oh '\\w*tty\\w*'";
     char buffer[128];
     std::string result = "";
@@ -373,8 +373,10 @@ const char* GPS_ERB::find_port(void){
         throw;
     }
     pclose(pipe);
-    Debug("Port %s",result.c_str());
     if(result.length() > 10 || result.length() <= 0) // Check for valid serial port value 
         exit(-1);
-    return result.c_str();
+    result.pop_back(); // To remove last char
+    result = "/dev/" + result;
+    Debug("Found Reach RTK on Port %s",result.c_str());
+    return result;
 }
