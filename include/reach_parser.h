@@ -147,6 +147,7 @@ private:
         MSG_DOPS = 0x04,
         MSG_VEL = 0x05,
         MSG_RTK = 0x07,
+        MSG_SVI = 0x06,
     };
 
     enum erb_fix_type {

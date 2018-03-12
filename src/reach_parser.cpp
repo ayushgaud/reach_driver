@@ -239,6 +239,10 @@ GPS_ERB::_parse_gps(void)
         _state.rtk_week_number   = _buffer.rtk.base_week_number;
         _state.rtk_time_week_ms  = _buffer.rtk.base_time_week_ms;
         break;
+    case MSG_SVI:
+        Debug("Message SVI");
+        /* Not processing space vehicle information */
+        break;
     default:
         Warn("Unexpected message 0x%02x", (unsigned)_msg_id);
         return false;

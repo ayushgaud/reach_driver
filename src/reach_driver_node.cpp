@@ -60,7 +60,7 @@ int main(int argc, char **argv)
 						                      0,   0,   0,  0,  1e6, 0,
 						                      0,   0,   0,  0,  0,  1e6};
 			gps_pub.publish(msg);
-			gps_vel_pub.publish(msg);
+			gps_vel_pub.publish(velocity_msg);
 		}
 		usleep(10000); // Wait for 10ms before polling again
 	}
