@@ -92,6 +92,7 @@ int main(int argc, char **argv)
       gps_pub.publish(msg);
       gps_vel_pub.publish(velocity_msg);
     }
+    ros::spinOnce();
     usleep(10000);  // Wait for 10ms before polling again
   }
   return 0;
