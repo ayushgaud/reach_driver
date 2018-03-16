@@ -19,27 +19,27 @@
 
 #pragma once  // Only to include the header once
 
-#include <stdint.h>  // or if using C++11 then #include <cstdint> for fixed width type objetcs like int8_t etc.
-#include <stdlib.h>
-#include <stdio.h>
-#include <unistd.h>
 #include <fcntl.h>
-#include <termios.h>
-#include <string.h>
 #include <math.h>
+#include <stdint.h>  // or if using C++11 then #include <cstdint> for fixed width type objetcs like int8_t etc.
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <termios.h>
+#include <unistd.h>
 #include <cstdlib>
-#include <string>     // std::string
+#include <iostream>
 #include <stdexcept>  // std::runtime_error
+#include <string>     // std::string
 #include "gps_objects.h"
 
 #define DEFAULT_PORT "/dev/ttyACM0"
 #define MAX_BUF_SIZE 100
 #define PACKED __attribute__((__packed__))
 #define FALLTHROUGH [[fallthrough]]
-#define DEFINE_BYTE_ARRAY_METHODS                                                                                      \
-  inline uint8_t &operator[](size_t i)                                                                                 \
-  {                                                                                                                    \
-    return reinterpret_cast<uint8_t *>(this)[i];                                                                       \
+#define DEFINE_BYTE_ARRAY_METHODS                \
+  inline uint8_t &operator[](size_t i) {         \
+    return reinterpret_cast<uint8_t *>(this)[i]; \
   }
 
 #define STAT_FIX_VALID 0x01
@@ -47,50 +47,56 @@
 #if ERB_DEBUGGING
 #define RED "\x1B[31m"
 #define GRN "\x1B[32m"
-#define YEL "\x1B[33m"
-#define BLU "\x1B[34m"
-#define MAG "\x1B[35m"
-#define CYN "\x1B[36m"
-#define WHT "\x1B[37m"
 #define RESET "\x1B[0m"
-#define Debug(fmt, args...) printf(GRN "%s:%d: " fmt "\n" RESET, __FUNCTION__, __LINE__, ##args)
-#define Warn(fmt, args...) printf(RED "%s:%d: " fmt "\n" RESET, __FUNCTION__, __LINE__, ##args)
+
+#define Debug(str)                                                           \
+  do {                                                                       \
+    std::cout << __FUNCTION__ << ": Line " << __LINE__ << ": " << GRN << str \
+              << RESET << std::endl;                                         \
+  } while (false)
+#define Warn(str)                                                            \
+  do {                                                                       \
+    std::cout << __FUNCTION__ << ": Line " << __LINE__ << ": " << RED << str \
+              << RESET << std::endl;                                         \
+  } while (false)
+
 #else
-#define Debug(fmt, args...)
-#define Warn(fmt, args...)
+#define Debug(str) \
+  do {             \
+  } while (false)
+#define Warn(str) \
+  do {            \
+  } while (false)
+// #define Warn(fmt, args...)
 #endif
 
-class GPS_ERB
-{
-public:
+class GPS_ERB {
+ public:
   GPS_ERB(GPS_State &state, const char *port);
   ~GPS_ERB();
   // Methods
   bool read();
 
-private:
+ private:
   std::string find_port(void);
 
   int32_t wr360(const int32_t angle, float unit_mod = 1);
 
   void _init_state();
 
-  struct PACKED erb_header
-  {
+  struct PACKED erb_header {
     uint8_t preamble1;
     uint8_t preamble2;
     uint8_t msg_id;
     uint16_t length;
   };
-  struct PACKED erb_ver
-  {
+  struct PACKED erb_ver {
     uint32_t time;  ///< GPS time of week of the navigation epoch [ms]
     uint8_t ver_high;
     uint8_t ver_medium;
     uint8_t ver_low;
   };
-  struct PACKED erb_pos
-  {
+  struct PACKED erb_pos {
     uint32_t time;  ///< GPS time of week of the navigation epoch [ms]
     double longitude;
     double latitude;
@@ -99,24 +105,21 @@ private:
     uint32_t horizontal_accuracy;  ///< Horizontal accuracy estimate [mm]
     uint32_t vertical_accuracy;    ///< Vertical accuracy estimate [mm]
   };
-  struct PACKED erb_stat
-  {
+  struct PACKED erb_stat {
     uint32_t time;  ///< GPS time of week of the navigation epoch [ms]
     uint16_t week;
     uint8_t fix_type;  ///< see erb_fix_type enum
     uint8_t fix_status;
     uint8_t satellites;
   };
-  struct PACKED erb_dops
-  {
+  struct PACKED erb_dops {
     uint32_t time;  ///< GPS time of week of the navigation epoch [ms]
     uint16_t gDOP;  ///< Geometric DOP
     uint16_t pDOP;  ///< Position DOP
     uint16_t vDOP;  ///< Vertical DOP
     uint16_t hDOP;  ///< Horizontal DOP
   };
-  struct PACKED erb_vel
-  {
+  struct PACKED erb_vel {
     uint32_t time;            ///< GPS time of week of the navigation epoch [ms]
     int32_t vel_north;        ///< North velocity component [cm/s]
     int32_t vel_east;         ///< East velocity component [cm/s]
@@ -125,21 +128,25 @@ private:
     int32_t heading_2d;       ///< Heading of motion 2-D [1e5 deg]
     uint32_t speed_accuracy;  ///< Speed accuracy Estimate [cm/s]
   };
-  struct PACKED erb_rtk
-  {
-    uint8_t base_num_sats;  ///< Current number of satellites used for RTK calculation
-    uint16_t age_cs;  ///< Age of the corrections in centiseconds (0 when no corrections, 0xFFFF indicates overflow)
-    int32_t baseline_N_mm;       ///< distance between base and rover along the north axis in millimeters
-    int32_t baseline_E_mm;       ///< distance between base and rover along the east axis in millimeters
-    int32_t baseline_D_mm;       ///< distance between base and rover along the down axis in millimeters
-    uint16_t ar_ratio;           ///< AR ratio multiplied by 10
+  struct PACKED erb_rtk {
+    uint8_t base_num_sats;  ///< Current number of satellites used for RTK
+                            ///< calculation
+    uint16_t age_cs;  ///< Age of the corrections in centiseconds (0 when no
+                      ///< corrections, 0xFFFF indicates overflow)
+    int32_t baseline_N_mm;  ///< distance between base and rover along the north
+                            ///< axis in millimeters
+    int32_t baseline_E_mm;  ///< distance between base and rover along the east
+                            ///< axis in millimeters
+    int32_t baseline_D_mm;  ///< distance between base and rover along the down
+                            ///< axis in millimeters
+    uint16_t ar_ratio;      ///< AR ratio multiplied by 10
     uint16_t base_week_number;   ///< GPS Week Number of last baseline
-    uint32_t base_time_week_ms;  ///< GPS Time of Week of last baseline in milliseconds
+    uint32_t base_time_week_ms;  ///< GPS Time of Week of last baseline in
+                                 ///< milliseconds
   };
 
   // Receive buffer
-  union PACKED
-  {
+  union PACKED {
     DEFINE_BYTE_ARRAY_METHODS
     erb_ver ver;
     erb_pos pos;
@@ -149,8 +156,7 @@ private:
     erb_rtk rtk;
   } _buffer;
 
-  enum erb_protocol_bytes
-  {
+  enum erb_protocol_bytes {
     PREAMBLE1 = 0x45,
     PREAMBLE2 = 0x52,
     MSG_VER = 0x01,
@@ -162,8 +168,7 @@ private:
     MSG_SVI = 0x06,
   };
 
-  enum erb_fix_type
-  {
+  enum erb_fix_type {
     FIX_NONE = 0x00,
     FIX_SINGLE = 0x01,
     FIX_FLOAT = 0x02,

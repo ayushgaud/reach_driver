@@ -20,16 +20,15 @@
 #include "reach_parser.h"
 
 GPS_ERB::GPS_ERB(GPS_State& state, const char* port = DEFAULT_PORT)
-  : _step(0)
-  , _msg_id(0)
-  , _payload_length(0)
-  , _payload_counter(0)
-  , _new_position(0)
-  , _new_speed(0)
-  , _state(state)
-  , _tty_fd(-1)
-  , next_fix(NO_FIX)
-{
+    : _step(0),
+      _msg_id(0),
+      _payload_length(0),
+      _payload_counter(0),
+      _new_position(0),
+      _new_speed(0),
+      _state(state),
+      _tty_fd(-1),
+      next_fix(NO_FIX) {
   /* store port name */
   if (!strcmp(port, "auto"))
     strncpy(_port, GPS_ERB::find_port().c_str(), sizeof(_port));
@@ -47,8 +46,7 @@ GPS_ERB::GPS_ERB(GPS_State& state, const char* port = DEFAULT_PORT)
   GPS_ERB::_init_serial();
 }
 
-GPS_ERB::~GPS_ERB()
-{
+GPS_ERB::~GPS_ERB() {
   /* Close the serial port */
   close(_tty_fd);
 }
@@ -61,8 +59,7 @@ GPS_ERB::~GPS_ERB()
 // re-processing it from the top, this is unavoidable. The parser
 // attempts to avoid this when possible.
 //
-bool GPS_ERB::read()
-{
+bool GPS_ERB::read() {
   /* the buffer for read chars is buflen minus null termination */
   uint8_t readbuf[sizeof(MAX_BUF_SIZE)];
   unsigned readlen = sizeof(readbuf) - 1;
@@ -72,29 +69,25 @@ bool GPS_ERB::read()
   numc = ::read(_tty_fd, &readbuf[0], readlen);
   bool parsed = false;
 
-  for (int16_t i = 0; i < numc; i++)
-  {  // Process bytes received
+  for (int16_t i = 0; i < numc; i++) {  // Process bytes received
 
     // read the byte
     data = readbuf[i];
 
   reset:
-    switch (_step)
-    {
+    switch (_step) {
       // Message preamble detection
       //
       case 1:
-        if (PREAMBLE2 == data)
-        {
+        if (PREAMBLE2 == data) {
           _step++;
           break;
         }
         _step = 0;
-        Debug("reset %u", __LINE__);
+        // Debug("reset %u", __LINE__);
         /* FALLTHROUGH */
       case 0:
-        if (PREAMBLE1 == data)
-          _step++;
+        if (PREAMBLE1 == data) _step++;
         break;
 
       // Message header processing
@@ -120,35 +113,32 @@ bool GPS_ERB::read()
       //
       case 5:
         _ck_b += (_ck_a += data);  // checksum byte
-        if (_payload_counter < sizeof(_buffer))
-        {
+        if (_payload_counter < sizeof(_buffer)) {
           _buffer[_payload_counter] = data;
         }
-        if (++_payload_counter == _payload_length)
-          _step++;
+        if (++_payload_counter == _payload_length) _step++;
         break;
 
       // Checksum and message processing
       //
       case 6:
         _step++;
-        if (_ck_a != data)
-        {
-          Warn("bad cka %x should be %x", data, _ck_a);
+        if (_ck_a != data) {
+          Warn("bad cka " << std::hex << data << "should be " << std::hex
+                          << _ck_a);
           _step = 0;
           goto reset;
         }
         break;
       case 7:
         _step = 0;
-        if (_ck_b != data)
-        {
-          Warn("bad ckb %x should be %x", data, _ck_b);
+        if (_ck_b != data) {
+          Warn("bad ckb " << std::hex << data << "should be " << std::hex
+                          << _ck_b);
           break;  // bad checksum
         }
 
-        if (_parse_gps())
-        {
+        if (_parse_gps()) {
           parsed = true;
         }
         break;
@@ -157,12 +147,13 @@ bool GPS_ERB::read()
   return parsed;
 }
 
-bool GPS_ERB::_parse_gps(void)
-{
-  switch (_msg_id)
-  {
+bool GPS_ERB::_parse_gps(void) {
+  switch (_msg_id) {
     case MSG_VER:
-      Debug("Version of ERB protocol %u.%u.%u", _buffer.ver.ver_high, _buffer.ver.ver_medium, _buffer.ver.ver_low);
+
+      Debug("Version of ERB protocol " << (int)_buffer.ver.ver_high << "."
+                                       << (int)_buffer.ver.ver_medium << "."
+                                       << (int)_buffer.ver.ver_low);
       break;
     case MSG_POS:
       Debug("Message POS");
@@ -172,41 +163,35 @@ bool GPS_ERB::_parse_gps(void)
       _state.altitude = _buffer.pos.altitude_msl;
       _state.status = next_fix;
       _new_position = true;
-      _state.horizontal_accuracy = _buffer.pos.horizontal_accuracy * 1.0e-3f;  // in m
-      _state.vertical_accuracy = _buffer.pos.vertical_accuracy * 1.0e-3f;      // in m
+      _state.horizontal_accuracy =
+          _buffer.pos.horizontal_accuracy * 1.0e-3f;  // in m
+      _state.vertical_accuracy =
+          _buffer.pos.vertical_accuracy * 1.0e-3f;  // in m
       _state.have_horizontal_accuracy = true;
       _state.have_vertical_accuracy = true;
       break;
     case MSG_STAT:
-      Debug("Message STAT fix_status=%u fix_type=%u", _buffer.stat.fix_status, _buffer.stat.fix_type);
-      if (_buffer.stat.fix_status & STAT_FIX_VALID)
-      {
-        if (_buffer.stat.fix_type == GPS_ERB::FIX_FIX)
-        {
+
+      Debug("Message STAT fix_status=" << (int)_buffer.stat.fix_status
+                                       << " fix_type="
+                                       << (int)_buffer.stat.fix_type);
+      if (_buffer.stat.fix_status & STAT_FIX_VALID) {
+        if (_buffer.stat.fix_type == GPS_ERB::FIX_FIX) {
           next_fix = GPS_OK_FIX_3D_RTK_FIXED;
-        }
-        else if (_buffer.stat.fix_type == GPS_ERB::FIX_FLOAT)
-        {
+        } else if (_buffer.stat.fix_type == GPS_ERB::FIX_FLOAT) {
           next_fix = GPS_OK_FIX_3D_RTK_FLOAT;
-        }
-        else if (_buffer.stat.fix_type == GPS_ERB::FIX_SINGLE)
-        {
+        } else if (_buffer.stat.fix_type == GPS_ERB::FIX_SINGLE) {
           next_fix = GPS_OK_FIX_3D;
-        }
-        else
-        {
+        } else {
           next_fix = NO_FIX;
           _state.status = NO_FIX;
         }
-      }
-      else
-      {
+      } else {
         next_fix = NO_FIX;
         _state.status = NO_FIX;
       }
       _state.num_sats = _buffer.stat.satellites;
-      if (next_fix >= GPS_OK_FIX_3D)
-      {
+      if (next_fix >= GPS_OK_FIX_3D) {
         _state.time_week_ms = _buffer.stat.time;
         _state.time_week = _buffer.stat.week;
       }
@@ -234,12 +219,9 @@ bool GPS_ERB::_parse_gps(void)
       Debug("Message RTK");
       _state.rtk_baseline_coords_type = RTK_BASELINE_COORDINATE_SYSTEM_NED;
       _state.rtk_num_sats = _buffer.rtk.base_num_sats;
-      if (_buffer.rtk.age_cs == 0xFFFF)
-      {
+      if (_buffer.rtk.age_cs == 0xFFFF) {
         _state.rtk_age_ms = 0xFFFFFFFF;
-      }
-      else
-      {
+      } else {
         _state.rtk_age_ms = _buffer.rtk.age_cs * 10;
       }
       _state.rtk_baseline_x_mm = _buffer.rtk.baseline_N_mm;
@@ -255,13 +237,12 @@ bool GPS_ERB::_parse_gps(void)
       /* Not processing space vehicle information */
       break;
     default:
-      Warn("Unexpected message 0x%02x", (unsigned)_msg_id);
+      Warn("Unexpected message 0x" << std::hex << (unsigned)_msg_id);
       return false;
   }
   // we only return true when we get new position and speed data
   // this ensures we don't use stale data
-  if (_new_position && _new_speed && _last_vel_time == _last_pos_time)
-  {
+  if (_new_position && _new_speed && _last_vel_time == _last_pos_time) {
     _new_speed = _new_position = false;
     _fix_count++;
     _state.fix_count = _fix_count;
@@ -270,19 +251,16 @@ bool GPS_ERB::_parse_gps(void)
   return false;
 }
 
-int32_t GPS_ERB::wr360(const int32_t angle, float unit_mod)
-{
+int32_t GPS_ERB::wr360(const int32_t angle, float unit_mod) {
   const float ang_360 = 360.f * unit_mod;
   float res = fmodf(angle, ang_360);
-  if (res < 0)
-  {
+  if (res < 0) {
     res += ang_360;
   }
   return static_cast<int32_t>(res);
 }
 
-void GPS_ERB::_init_serial()
-{
+void GPS_ERB::_init_serial() {
   /* open fd */
   _tty_fd = ::open(_port, O_RDWR | O_NOCTTY | O_SYNC);
 
@@ -306,7 +284,8 @@ void GPS_ERB::_init_serial()
   uart_config.c_cflag &= ~CRTSCTS; /* no hardware flowcontrol */
 
   /* setup for non-canonical mode */
-  uart_config.c_iflag &= ~(IGNBRK | BRKINT | PARMRK | ISTRIP | INLCR | IGNCR | ICRNL | IXON);
+  uart_config.c_iflag &=
+      ~(IGNBRK | BRKINT | PARMRK | ISTRIP | INLCR | IGNCR | ICRNL | IXON);
   uart_config.c_lflag &= ~(ECHO | ECHONL | ICANON | ISIG | IEXTEN);
   uart_config.c_oflag &= ~OPOST;
 
@@ -315,35 +294,28 @@ void GPS_ERB::_init_serial()
   uart_config.c_cc[VTIME] = 1;
 
   /* set baud rate */
-  if ((termios_state = cfsetispeed(&uart_config, speed)) < 0)
-  {
-    Warn("ERR CFG: %d ISPD", termios_state);
+  if ((termios_state = cfsetispeed(&uart_config, speed)) < 0) {
+    Warn("ERR CFG: " << termios_state << " ISPD");
   }
 
-  if ((termios_state = cfsetospeed(&uart_config, speed)) < 0)
-  {
-    Warn("ERR CFG: %d OSPD\n", termios_state);
+  if ((termios_state = cfsetospeed(&uart_config, speed)) < 0) {
+    Warn("ERR CFG: " << termios_state << " OSPD");
   }
 
-  if ((termios_state = tcsetattr(_tty_fd, TCSANOW, &uart_config)) < 0)
-  {
-    Warn("ERR baud %d ATTR", termios_state);
+  if ((termios_state = tcsetattr(_tty_fd, TCSANOW, &uart_config)) < 0) {
+    Warn("ERR baud " << termios_state << " ATTR");
   }
 
   usleep(500000);  // Wait for 500ms to setup
 
-  if (_tty_fd < 0)
-  {
+  if (_tty_fd < 0) {
     Warn("FAIL to open");
-  }
-  else
-  {
+  } else {
     Debug("Successfully opened port");
   }
 }
 
-void GPS_ERB::_init_state()
-{
+void GPS_ERB::_init_state() {
   _state.status = NO_GPS;
   _state.fix_count = 0;
   _state.time_week_ms = 0;
@@ -375,33 +347,29 @@ void GPS_ERB::_init_state()
   _state.rtk_iar_num_hypotheses = 0;
 }
 
-std::string GPS_ERB::find_port(void)
-{
-  const char* cmd = "ls /dev/serial/by-id/* | grep Edison | xargs ls -la | grep -m1 -oh "
-                    "'\\w*tty\\w*'";
+std::string GPS_ERB::find_port(void) {
+  const char* cmd =
+      "ls /dev/serial/by-id/* | grep Edison | xargs ls -la | grep -m1 -oh "
+      "'\\w*tty\\w*'";
   char buffer[128];
   std::string result = "";
   FILE* pipe = popen(cmd, "r");
-  if (!pipe)
-    throw std::runtime_error("popen() failed!");
-  try
-  {
-    while (!feof(pipe))
-    {
-      if (fgets(buffer, 128, pipe) != NULL)
-        result += buffer;
+  if (!pipe) throw std::runtime_error("popen() failed!");
+  try {
+    while (!feof(pipe)) {
+      if (fgets(buffer, 128, pipe) != NULL) result += buffer;
     }
-  }
-  catch (...)
-  {
+  } catch (...) {
     pclose(pipe);
     throw;
   }
   pclose(pipe);
-  if (result.length() > 10 || result.length() <= 0)  // Check for valid serial port value
+  if (result.length() > 10 ||
+      result.length() <= 0)  // Check for valid serial port value
     exit(-1);
   result.pop_back();  // To remove last char
   result = "/dev/" + result;
-  Debug("Found Reach RTK on Port %s", result.c_str());
+  // Debug("Found Reach RTK on Port %s", result.c_str());
+  Debug("Found Reach RTK on Port " << result.c_str());
   return result;
 }
